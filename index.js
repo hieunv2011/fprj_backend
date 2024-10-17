@@ -1,51 +1,13 @@
-// const express = require("express");
-// const mongoose = require("mongoose");
-// const path = require("path");
-// const connectDB = require("./database/db");
-// const userRoutes = require("./routes/user");
-// const deviceRoutes = require("./routes/device");
-// const authorize = require('./middleware/authorize');
-
-// const app = express();
-// const port = 3008;
-
-// connectDB();
-
-// app.use(express.json());
-
-// app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
-// app.use((req, res, next) => {
-//   if (req.path.startsWith('/api/users/register')) {
-//     authorize(['admin'])(req, res, next);
-//   } else if (req.path.startsWith('/api/devices') && req.method === 'POST') {
-//     authorize(['admin', 'manager'])(req, res, next);
-//   } else if (!req.path.startsWith('/api/users/login')) {
-//     authorize(['admin', 'manager', 'user'])(req, res, next);
-//   } else {
-//     next();
-//   }
-// });
-
-// app.use("/api/users", userRoutes);
-// app.use("/api/devices", deviceRoutes);
-
-// app.listen(port, () => {
-//   console.log(`Server running on port ${port}`);
-// });
-
 const express = require("express");
-const mongoose = require("mongoose");
-const path = require("path");
 const connectDB = require("./database/db");
-const Device = require("./models/Device");
 const mqtt = require("mqtt");
-const userRoutes = require("./routes/user"); // Bổ sung lại route người dùng
+const userRoutes = require("./routes/user");
 const deviceRoutes = require("./routes/device");
 const authorize = require("./middleware/authorize");
+require('dotenv').config(); // Thêm dòng này để sử dụng biến môi trường từ file .env
 
 const app = express();
-const port = 3008;
+const port = process.env.PORT || 3008; // Sử dụng biến môi trường PORT
 
 connectDB();
 
@@ -78,39 +40,8 @@ mqttClient.on("connect", () => {
   });
 });
 
-// mqttClient.on("message", async (topic, message) => {
-//     console.log(`Received message on topic ${topic}: ${message.toString()}`);
-
-//     const deviceId = topic.split('/')[0];  // Tách deviceId từ topic
-//     let sensorData;
-//     try {
-//         sensorData = JSON.parse(message.toString());  // Chuyển đổi dữ liệu nhận được sang JSON
-//     } catch (error) {
-//         console.error(`Error parsing message: ${error}`);
-//         return;
-//     }
-
-//     console.log(`Parsed sensor data for ${deviceId}:`, sensorData);
-
-//     try {
-//         const updatedDevice = await Device.findOneAndUpdate(
-//             { deviceId: deviceId },
-//             { $push: { sensorData: sensorData }, lastChecked: new Date() },
-//             { new: true, upsert: false }
-//         );
-
-//         if (updatedDevice) {
-//             console.log(`Data updated for ${deviceId}`);
-//         } else {
-//             console.log(`Device with ID ${deviceId} not found`);
-//         }
-//     } catch (error) {
-//         console.error(`Error updating data for ${deviceId}:`, error);
-//     }
-// });
-
 // Định nghĩa routes cho API
-app.use("/api/users", userRoutes); // Bổ sung lại route người dùng để xử lý đăng nhập
+app.use("/api/users", userRoutes);
 app.use("/api/devices", deviceRoutes);
 
 // Middleware authorize như trước
