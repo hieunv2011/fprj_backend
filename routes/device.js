@@ -5,7 +5,7 @@ const router = express.Router();
 // POST /devices - Thêm mới thiết bị
 router.post('/', async (req, res) => {
   try {
-    const { deviceId, name, location, status } = req.body;
+    const { deviceId, name, location, status, latitude, longitude } = req.body;
 
     // Kiểm tra xem deviceId đã tồn tại chưa
     const existingDevice = await Device.findOne({ deviceId });
@@ -18,7 +18,9 @@ router.post('/', async (req, res) => {
       deviceId,
       name,
       location,
-      status
+      status,
+      latitude,  // Thêm latitude
+      longitude, // Thêm longitude
     });
 
     await newDevice.save();
@@ -27,6 +29,7 @@ router.post('/', async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 // GET /devices - Lấy danh sách tất cả các thiết bị
 router.get('/', async (req, res) => {
