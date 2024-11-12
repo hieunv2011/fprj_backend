@@ -40,6 +40,37 @@ router.get('/', authorize(['admin', 'manager']), async (req, res) => {
   }
 });
 
+
+// GET /devices/:deviceId - Lấy thông tin của thiết bị theo deviceId
+router.get('/:deviceId', authorize(['admin', 'manager', 'user']), async (req, res) => {
+  const deviceId = req.params.deviceId;
+
+  try {
+    // Tìm thiết bị theo deviceId
+    const device = await Device.findOne({ deviceId });
+    if (!device) {
+      return res.status(404).json({ message: 'Device not found' });
+    }
+
+    // Trả về thông tin thiết bị
+    res.status(200).json({
+      deviceId: device.deviceId,
+      name: device.name,
+      location: device.location,
+      status: device.status,
+      latitude: device.latitude,
+      longitude: device.longitude,
+      sensorData: device.sensorData,
+      lastChecked: device.lastChecked
+    });
+  } catch (error) {
+    console.error(error); // Log lỗi nếu có
+    res.status(500).json({ message: error.message });
+  }
+});
+
+
+
 // GET /user-devices/:userId - Lấy danh sách thiết bị của người dùng theo userId
 router.get('/user-devices/:userId', authorize(['admin', 'manager','user']), async (req, res) => {
   try {
@@ -63,5 +94,6 @@ router.get('/user-devices/:userId', authorize(['admin', 'manager','user']), asyn
     res.status(500).json({ message: error.message });
   }
 });
+
 
 module.exports = router;

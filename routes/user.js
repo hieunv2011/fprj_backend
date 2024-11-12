@@ -106,7 +106,7 @@ router.get('/', authorize(['admin', 'manager']), async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-// PUT /users/:id - Cập nhật thông tin người dùng (dựa trên userId)
+// PUT /users/:id - Cập nhật thông tin người dùng
 router.put('/:id', authorize(['admin', 'manager']), async (req, res) => {
   const userId = req.params.id;
   const { email, password, username, phone, role, contact, devices } = req.body;
@@ -118,9 +118,23 @@ router.put('/:id', authorize(['admin', 'manager']), async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Cập nhật các trường thông tin của người dùng
+    // Kiểm tra trùng lặp email, username, phone trong cơ sở dữ liệu (ngoại trừ người dùng hiện tại)
+    const existingUser = await User.findOne({
+      $or: [
+        { email },
+        { username },
+        { phone }
+      ],
+      _id: { $ne: userId }  // Đảm bảo không trùng với chính người dùng đang cập nhật
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email, username, or phone number already exists' });
+    }
+
+    // Cập nhật các trường nếu có thay đổi
     if (email) user.email = email;
-    if (password) user.password = await bcrypt.hash(password, 10); // Mã hóa lại password
+    if (password) user.password = await bcrypt.hash(password, 10); // Nếu có thay đổi mật khẩu thì mã hóa lại
     if (username) user.username = username;
     if (phone) user.phone = phone;
     if (role) user.role = role;
@@ -132,10 +146,36 @@ router.put('/:id', authorize(['admin', 'manager']), async (req, res) => {
 
     res.status(200).json({ message: 'User updated successfully', user });
   } catch (error) {
-    console.error(error);
+    console.error(error); // Log lỗi nếu có
     res.status(500).json({ message: error.message });
   }
 });
+// GET /users/:id - Lấy thông tin người dùng theo ID
+router.get('/:id', authorize(['admin', 'manager']), async (req, res) => {
+  const userId = req.params.id;
+
+  try {
+    // Tìm người dùng theo ID
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Trả về thông tin người dùng
+    res.status(200).json({
+      email: user.email,
+      username: user.username,
+      phone: user.phone,
+      role: user.role,
+      contact: user.contact,
+      devices: user.devices
+    });
+  } catch (error) {
+    console.error(error); // Log lỗi nếu có
+    res.status(500).json({ message: error.message });
+  }
+});
+
 
 
 //Phần liên quan đến Device
