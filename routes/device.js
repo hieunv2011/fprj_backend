@@ -1,26 +1,26 @@
 const express = require('express');
 const Device = require('../models/Device');
+const User = require('../models/User');
+const authorize = require('../middleware/authorize');
 const router = express.Router();
 
 // POST /devices - Thêm mới thiết bị
-router.post('/', async (req, res) => {
+router.post('/', authorize(['admin', 'manager']), async (req, res) => {
   try {
     const { deviceId, name, location, status, latitude, longitude } = req.body;
 
-    // Kiểm tra xem deviceId đã tồn tại chưa
     const existingDevice = await Device.findOne({ deviceId });
     if (existingDevice) {
       return res.status(400).json({ message: 'Device ID already exists' });
     }
 
-    // Tạo thiết bị mới
     const newDevice = new Device({
       deviceId,
       name,
       location,
       status,
-      latitude,  // Thêm latitude
-      longitude, // Thêm longitude
+      latitude,
+      longitude,
     });
 
     await newDevice.save();
@@ -30,13 +30,36 @@ router.post('/', async (req, res) => {
   }
 });
 
-
 // GET /devices - Lấy danh sách tất cả các thiết bị
-router.get('/', async (req, res) => {
+router.get('/', authorize(['admin', 'manager']), async (req, res) => {
   try {
     const devices = await Device.find();
     res.status(200).json(devices);
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// GET /user-devices/:userId - Lấy danh sách thiết bị của người dùng theo userId
+router.get('/user-devices/:userId', authorize(['admin', 'manager','user']), async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    // Tìm người dùng theo userId
+    const user = await User.findById(userId).populate('devices.deviceId');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Nếu người dùng có thiết bị, trả về danh sách thiết bị
+    if (user.devices && user.devices.length > 0) {
+      const deviceList = user.devices.map(device => device.deviceId);
+      res.status(200).json(deviceList);
+    } else {
+      res.status(404).json({ message: 'No devices found for this user' });
+    }
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ message: error.message });
   }
 });

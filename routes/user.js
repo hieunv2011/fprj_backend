@@ -1,8 +1,11 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Import model người dùng
+const User = require('../models/User');
+const Device = require('../models/Device');
 const router = express.Router();
+const authorize = require('../middleware/authorize');
+
 
 const JWT_SECRET = 'your_jwt_secret_key';
 
@@ -91,5 +94,66 @@ router.get('/me', authenticateToken, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+// API để gắn thiết bị vào người dùng
+router.post('/assign-device', authorize(['admin', 'manager','user']), async (req, res) => {
+  const { userId, deviceId } = req.body;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    for (let id of deviceId) {
+      const device = await Device.findOne({ deviceId: id });
+      if (!device) {
+        return res.status(404).json({ message: `Device with ID ${id} not found` });
+      }
+
+      const existingUser = await User.findOne({ "devices.deviceId": id });
+      if (existingUser) {
+        return res.status(400).json({ message: `Device with ID ${id} already assigned to another user` });
+      }
+
+      user.devices.push({ deviceId: id });
+    }
+
+    await user.save();
+    res.status(200).json({ message: 'Devices successfully assigned to user' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// DELETE /remove-device - Xoá thiết bị khỏi người dùng
+router.delete('/remove-device', authorize(['admin', 'manager','user']), async (req, res) => {
+  const { userId, deviceId } = req.body;
+
+  try {
+    // Kiểm tra xem người dùng có tồn tại không
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Kiểm tra xem thiết bị có tồn tại trong danh sách thiết bị của người dùng không
+    const deviceIndex = user.devices.findIndex(device => device.deviceId === deviceId);
+    if (deviceIndex === -1) {
+      return res.status(404).json({ message: `Device with ID ${deviceId} not found for this user` });
+    }
+
+    // Xóa thiết bị khỏi danh sách thiết bị của người dùng
+    user.devices.splice(deviceIndex, 1);
+    await user.save();
+
+    res.status(200).json({ message: `Device ${deviceId} has been successfully removed from user ${user.username}` });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 
 module.exports = router;

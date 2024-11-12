@@ -1,4 +1,3 @@
-// middleware/authorize.js
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = 'your_jwt_secret_key';
 
@@ -14,7 +13,6 @@ const authorize = (allowedRoles) => {
 
       req.user = user;
 
-    //   Check role
       if (!allowedRoles.includes(user.role)) {
         return res.status(403).json({ message: 'You do not have permission to access this resource' });
       }
