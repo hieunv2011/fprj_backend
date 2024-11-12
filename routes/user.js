@@ -40,7 +40,6 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-
 // POST login
 router.post('/login', async (req, res) => {
   try {
@@ -155,5 +154,25 @@ router.delete('/remove-device', authorize(['admin', 'manager','user']), async (r
   }
 });
 
+// GET /user-devices/:userId - Lấy danh sách thiết bị của người dùng theo userId
+router.get('/user-devices/:userId', authorize(['admin', 'manager', 'user']), async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Tìm người dùng theo userId và lấy danh sách thiết bị
+    const user = await User.findById(userId).select('devices');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Lấy thông tin chi tiết từng thiết bị từ Device collection
+    const devices = await Device.find({ deviceId: { $in: user.devices.map(d => d.deviceId) } });
+
+    res.status(200).json({ devices });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+});
 
 module.exports = router;
