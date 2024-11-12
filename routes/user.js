@@ -94,6 +94,51 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 });
 
+// GET / - Lấy danh sách tất cả người dùng
+router.get('/', authorize(['admin', 'manager']), async (req, res) => {
+  try {
+    // Lấy tất cả người dùng, trừ mật khẩu để bảo mật
+    const users = await User.find().select('-password');
+    
+    res.status(200).json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+});
+// PUT /users/:id - Cập nhật thông tin người dùng (dựa trên userId)
+router.put('/:id', authorize(['admin', 'manager']), async (req, res) => {
+  const userId = req.params.id;
+  const { email, password, username, phone, role, contact, devices } = req.body;
+
+  try {
+    // Tìm người dùng theo userId
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Cập nhật các trường thông tin của người dùng
+    if (email) user.email = email;
+    if (password) user.password = await bcrypt.hash(password, 10); // Mã hóa lại password
+    if (username) user.username = username;
+    if (phone) user.phone = phone;
+    if (role) user.role = role;
+    if (contact) user.contact = contact;
+    if (devices) user.devices = devices;
+
+    // Lưu lại thay đổi
+    await user.save();
+
+    res.status(200).json({ message: 'User updated successfully', user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+
+//Phần liên quan đến Device
 // API để gắn thiết bị vào người dùng
 router.post('/assign-device', authorize(['admin', 'manager','user']), async (req, res) => {
   const { userId, deviceId } = req.body;
