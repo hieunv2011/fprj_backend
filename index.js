@@ -15,31 +15,6 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 
-// Kết nối tới MQTT broker
-const mqttClient = mqtt.connect("mqtt://broker.hivemq.com", {
-  clientId: "nodejs_mqtt_client",
-  port: 1883,
-});
-
-mqttClient.on("connect", () => {
-  console.log("Connected to MQTT broker");
-
-  mqttClient.subscribe("device001", (err) => {
-    if (!err) {
-      console.log("Subscribed to device001");
-    } else {
-      console.error("Error subscribing: ", err);
-    }
-  });
-
-  mqttClient.subscribe("device002", (err) => {
-    if (!err) {
-      console.log("Subscribed to device002");
-    } else {
-      console.error("Error subscribing: ", err);
-    }
-  });
-});
 
 // Định nghĩa routes cho API
 app.use("/api/users", userRoutes);
