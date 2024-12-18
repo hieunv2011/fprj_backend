@@ -1,5 +1,14 @@
+const express = require("express");
+const connectDB = require("./database/db");
 const mqtt = require("mqtt");
-
+const cors = require("cors");
+const userRoutes = require("./routes/user");
+const deviceRoutes = require("./routes/device");
+const Device = require("./models/Device");
+require('dotenv').config();
+const app = express();
+const port = process.env.PORT || 3008;
+connectDB();
 // Kết nối tới MQTT broker
 const mqttClient = mqtt.connect('mqtt://103.1.238.175', {
   port: 1883,
@@ -21,9 +30,8 @@ mqttClient.on('connect', () => {
 });
 
 // Nhận dữ liệu từ topic 'device' và xử lý
-mqttClient.on('message', (topic, message) => {
+mqttClient.on('message', async (topic, message) => {
   try {
-    // Chuyển đổi message thành JSON
     const data = JSON.parse(message.toString());
     console.log(`Data received from topic ${topic}:`, data);
 
@@ -32,13 +40,25 @@ mqttClient.on('message', (topic, message) => {
       return;
     }
 
-    // Duyệt qua từng key trong data (tên thiết bị như 'device002', 'device003')
-    Object.keys(data).forEach((deviceName) => {
+    // Đảm bảo hàm xử lý là async để sử dụng await
+    for (const deviceName of Object.keys(data)) {
       const deviceData = data[deviceName];
-      
+
+      //Xử lý MongoDb
+      const device = await Device.findOne({ deviceId: deviceName });  // Thêm đúng key 'deviceId'
+      if (device) {
+        device.sensorData.push(deviceData);
+        device.lastChecked = Date.now();
+        await device.save(); // Lưu lại dữ liệu vào cơ sở dữ liệu
+        console.log(`Updated sensorData for device ${deviceName}`);
+      } else {
+        console.log(`Device with deviceId ${deviceName} not found`);
+      }
+
+
       if (!deviceData) {
         console.log(`No data found for device: ${deviceName}`);
-        return;
+        continue;
       }
 
       let responseData = {
@@ -87,9 +107,16 @@ mqttClient.on('message', (topic, message) => {
           console.log(`Sent data to topic ${responseTopic}`);
         }
       });
-    });
+    }
 
   } catch (error) {
     console.error('Error parsing message:', error);
   }
+});
+// Định nghĩa routes cho API
+app.use("/api/users", userRoutes);
+app.use("/api/devices", deviceRoutes);
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });

@@ -38,7 +38,7 @@ mqttClient.on('connect', () => {
 });
 
 // Khi nhận được dữ liệu từ topic, cập nhật vào sensorData của thiết bị
-mqttClient.on('message', async (topic, message) => {
+mqttClient.on('message', async (topic, message) => {  
   try {
     const data = JSON.parse(message.toString()); // Chuyển dữ liệu từ MQTT thành JSON
     console.log(`Data received from topic ${topic}:`, data); // Kiểm tra dữ liệu nhận được từ MQTT
@@ -67,6 +67,7 @@ mqttClient.on('message', async (topic, message) => {
     console.error('Error parsing message:', error);
   }
 });
+
 
 // Định nghĩa routes cho API
 app.use("/api/users", userRoutes);
