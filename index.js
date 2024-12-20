@@ -141,13 +141,15 @@ const port = process.env.PORT || 3008;
 // Kết nối DB
 connectDB();
 
-// Định nghĩa routes cho API
-app.use("/api/users", userRoutes);
-app.use("/api/devices", deviceRoutes);
-
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+
+
+// Định nghĩa routes cho API
+app.use("/api/users", userRoutes);
+app.use("/api/devices", deviceRoutes);
 
 // Khởi tạo MQTT client
 const mqttClient = mqtt.connect('mqtt://103.1.238.175', {
@@ -244,6 +246,7 @@ mqttClient.on('message', async (topic, message) => {
     console.error('Error parsing message:', error);
   }
 });
+
 
 // Khởi động server
 app.listen(port, () => {
