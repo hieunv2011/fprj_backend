@@ -4,6 +4,7 @@ const mqtt = require("mqtt");
 const cors = require("cors");
 const userRoutes = require("./routes/user");
 const deviceRoutes = require("./routes/device");
+const Device = require("./models/Device");
 require('dotenv').config();
 
 const app = express();
