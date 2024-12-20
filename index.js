@@ -10,12 +10,20 @@
 // const app = express();
 // const port = process.env.PORT || 3008;
 
+// // Kết nối DB
 // connectDB();
 
 // // Middleware
 // app.use(cors());
 // app.use(express.json());
 
+
+
+// // Định nghĩa routes cho API
+// app.use("/api/users", userRoutes);
+// app.use("/api/devices", deviceRoutes);
+
+// // Khởi tạo MQTT client
 // const mqttClient = mqtt.connect('mqtt://103.1.238.175', {
 //   port: 1883,
 //   username: 'test',
@@ -46,25 +54,17 @@
 //       return;
 //     }
 
-//     // Đảm bảo hàm xử lý là async để sử dụng await
 //     for (const deviceName of Object.keys(data)) {
 //       const deviceData = data[deviceName];
+//       const device = await Device.findOne({ deviceId: deviceName });
 
-//       //Xử lý MongoDb
-//       const device = await Device.findOne({ deviceId: deviceName });  // Thêm đúng key 'deviceId'
 //       if (device) {
 //         device.sensorData.push(deviceData);
 //         device.lastChecked = Date.now();
-//         await device.save(); // Lưu lại dữ liệu vào cơ sở dữ liệu
+//         await device.save();
 //         console.log(`Updated sensorData for device ${deviceName}`);
 //       } else {
 //         console.log(`Device with deviceId ${deviceName} not found`);
-//       }
-
-
-//       if (!deviceData) {
-//         console.log(`No data found for device: ${deviceName}`);
-//         continue;
 //       }
 
 //       let responseData = {
@@ -73,10 +73,9 @@
 //         temperature: "normal",
 //         humidity: "normal",
 //         dust_density: "normal"
-//       }; // Khởi tạo tất cả là 'normal'
+//       };
 //       let warning = false;
 
-//       // Kiểm tra các giá trị trong data và tạo cảnh báo nếu cần
 //       if (deviceData.gas_ppm > 2000) {
 //         responseData.gas_ppm = "warning";
 //         warning = true;
@@ -119,10 +118,9 @@
 //     console.error('Error parsing message:', error);
 //   }
 // });
-// // Định nghĩa routes cho API
-// app.use("/api/users", userRoutes);
-// app.use("/api/devices", deviceRoutes);
 
+
+// // Khởi động server
 // app.listen(port, () => {
 //   console.log(`Server running on port ${port}`);
 // });
@@ -144,8 +142,6 @@ connectDB();
 // Middleware
 app.use(cors());
 app.use(express.json());
-
-
 
 // Định nghĩa routes cho API
 app.use("/api/users", userRoutes);
@@ -171,7 +167,10 @@ mqttClient.on('connect', () => {
   });
 });
 
-// Nhận dữ liệu từ topic 'device' và xử lý
+// Tạo một biến để lưu trữ dữ liệu đã nhận
+let receivedData = {};
+
+// Nhận dữ liệu từ topic 'device' và lưu vào biến
 mqttClient.on('message', async (topic, message) => {
   try {
     const data = JSON.parse(message.toString());
@@ -182,71 +181,79 @@ mqttClient.on('message', async (topic, message) => {
       return;
     }
 
-    for (const deviceName of Object.keys(data)) {
-      const deviceData = data[deviceName];
-      const device = await Device.findOne({ deviceId: deviceName });
-
-      if (device) {
-        device.sensorData.push(deviceData);
-        device.lastChecked = Date.now();
-        await device.save();
-        console.log(`Updated sensorData for device ${deviceName}`);
-      } else {
-        console.log(`Device with deviceId ${deviceName} not found`);
-      }
-
-      let responseData = {
-        gas_ppm: "normal",
-        flame_detected: "normal",
-        temperature: "normal",
-        humidity: "normal",
-        dust_density: "normal"
-      };
-      let warning = false;
-
-      if (deviceData.gas_ppm > 2000) {
-        responseData.gas_ppm = "warning";
-        warning = true;
-      }
-
-      if (deviceData.flame_detected === 0) {
-        responseData.flame_detected = "warning";
-        warning = true;
-      }
-
-      if (deviceData.temperature > 100) {
-        responseData.temperature = "warning";
-        warning = true;
-      }
-
-      if (deviceData.humidity < 30) {
-        responseData.humidity = "warning";
-        warning = true;
-      }
-
-      if (deviceData.dust_density > 1000) {
-        responseData.dust_density = "warning";
-        warning = true;
-      }
-
-      console.log("Response Data:", responseData);
-
-      // Gửi phản hồi lên topic mới dựa vào tên thiết bị
-      const responseTopic = `response/${deviceName}`;
-      mqttClient.publish(responseTopic, JSON.stringify(responseData), (err) => {
-        if (err) {
-          console.log('Error sending data:', err);
-        } else {
-          console.log(`Sent data to topic ${responseTopic}`);
-        }
-      });
-    }
-
+    // Lưu trữ dữ liệu vào biến (để xử lý sau)
+    receivedData = { ...receivedData, ...data };
   } catch (error) {
     console.error('Error parsing message:', error);
   }
 });
 
+// Hàm gửi dữ liệu lên topic mới mỗi giây một lần
+setInterval(async () => {
+  for (const deviceName of Object.keys(receivedData)) {
+    const deviceData = receivedData[deviceName];
+    const device = await Device.findOne({ deviceId: deviceName });
+
+    if (device) {
+      device.sensorData.push(deviceData);
+      device.lastChecked = Date.now();
+      await device.save();
+      console.log(`Updated sensorData for device ${deviceName}`);
+    } else {
+      console.log(`Device with deviceId ${deviceName} not found`);
+    }
+
+    let responseData = {
+      gas_ppm: "normal",
+      flame_detected: "normal",
+      temperature: "normal",
+      humidity: "normal",
+      dust_density: "normal"
+    };
+    let warning = false;
+
+    if (deviceData.gas_ppm > 2000) {
+      responseData.gas_ppm = "warning";
+      warning = true;
+    }
+
+    if (deviceData.flame_detected === 0) {
+      responseData.flame_detected = "warning";
+      warning = true;
+    }
+
+    if (deviceData.temperature > 100) {
+      responseData.temperature = "warning";
+      warning = true;
+    }
+
+    if (deviceData.humidity < 30) {
+      responseData.humidity = "warning";
+      warning = true;
+    }
+
+    if (deviceData.dust_density > 1000) {
+      responseData.dust_density = "warning";
+      warning = true;
+    }
+
+    console.log("Response Data:", responseData);
+
+    // Gửi phản hồi lên topic mới dựa vào tên thiết bị
+    const responseTopic = `response/${deviceName}`;
+    mqttClient.publish(responseTopic, JSON.stringify(responseData), (err) => {
+      if (err) {
+        console.log('Error sending data:', err);
+      } else {
+        console.log(`Sent data to topic ${responseTopic}`);
+      }
+    });
+  }
+
+  // Sau khi xử lý xong, làm trống biến receivedData để nhận dữ liệu mới
+  receivedData = {};
+
+}, 1000); // Thực hiện mỗi 1000ms (1 giây)
 
 // Khởi động server
 app.listen(port, () => {
