@@ -9,31 +9,28 @@ require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 3008;
-
 // Kết nối DB
 connectDB();
-
 // Middleware
 app.use(cors());
 app.use(express.json());
-
-
-
 // Định nghĩa routes cho API
 app.use("/api/users", userRoutes);
 app.use("/api/devices", deviceRoutes);
 
+
 // Khởi tạo MQTT client
-const mqttClient = mqtt.connect('mqtt://103.1.238.175', {
-  port: 1883,
-  username: 'test',
-  password: 'testadmin'
-});
+// const mqttClient = mqtt.connect('mqtt://103.1.238.175', {
+//   port: 1883,
+//   username: 'test',
+//   password: 'testadmin'
+// });
+const mqttClient = mqtt.connect('mqtt://broker.hivemq.com');
 
 // Kết nối và subscribe tới topic 'device'
 mqttClient.on('connect', () => {
   console.log('Connected to MQTT broker');
-  const topic = 'device'; // Đặt tên topic là 'device'
+  const topic = 'nguyenviethieudevice'; // Đặt tên topic là 'device'
   mqttClient.subscribe(topic, (err) => {
     if (err) {
       console.log('Subscription failed:', err);
@@ -104,7 +101,8 @@ mqttClient.on('message', async (topic, message) => {
       console.log("Response Data:", responseData);
 
       // Gửi phản hồi lên topic mới dựa vào tên thiết bị
-      const responseTopic = `response/${deviceName}`;
+      const responseTopic = `nguyenviethieu/${deviceName}`;
+      // const responseTopic = `nguyenviethieu`;
       mqttClient.publish(responseTopic, JSON.stringify(responseData), (err) => {
         if (err) {
           console.log('Error sending data:', err);

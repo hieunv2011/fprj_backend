@@ -1,36 +1,30 @@
-const mqtt = require("mqtt");
+const mqtt = require('mqtt');
 
-const brokerUrl = "mqtt://broker.hivemq.com"; // URL broker
-const clientId = "simplePublisher"; // Client ID
+// Kết nối tới MQTT Broker
+const client = mqtt.connect('mqtt://broker.hivemq.com'); // Sử dụng MQTT qua TCP
 
-// Create client
-const client = mqtt.connect(brokerUrl, {
-  clientId,
-  clean: true,
-});
+// Khi kết nối thành công
+client.on('connect', () => {
+  console.log('Đã kết nối thành công với MQTT Broker');
+  
+  const topic = 'nguyenviethieudevice'; // Tên topic cần theo dõi
 
-// Kết nối thành công
-client.on("connect", () => {
-  console.log("Đã kết nối thành công với HiveMQ.");
-
-  // JSON dữ liệu cần đẩy lên
-  const data = {
-    deviceId: "device001",
-    temperature: 25,
-    humidity: 60,
-  };
-
-  // Gửi dữ liệu lên topic "devices/data"
-  client.publish("devices/data", JSON.stringify(data), (err) => {
-    if (!err) {
-      console.log(`Đã gửi dữ liệu: ${JSON.stringify(data)}`);
+  // Đăng ký lắng nghe topic
+  client.subscribe(topic, (err) => {
+    if (err) {
+      console.error('Lỗi khi đăng ký lắng nghe topic:', err);
     } else {
-      console.error("Lỗi khi gửi dữ liệu:", err);
+      console.log(`Đang lắng nghe dữ liệu từ topic: "${topic}"`);
     }
   });
 });
 
-// Xử lý lỗi kết nối
-client.on("error", (err) => {
-  console.error("Lỗi kết nối:", err);
+// Khi nhận được dữ liệu từ topic
+client.on('message', (topic, message) => {
+  console.log(`Nhận dữ liệu từ topic "${topic}": ${message.toString()}`);
+});
+
+// Khi gặp lỗi
+client.on('error', (err) => {
+  console.error('Lỗi kết nối MQTT:', err);
 });
