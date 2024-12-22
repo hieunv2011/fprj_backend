@@ -122,7 +122,6 @@
 // });
 const mqtt = require("mqtt");
 const admin = require("firebase-admin");
-
 const serviceAccount = require("./firebase/serviceAccountKey.json");
 
 admin.initializeApp({
@@ -165,3 +164,15 @@ mqttClient.on('message', (topic, message) => {
 mqttClient.on('error', (err) => {
   console.log("Lỗi MQTT:", err);
 });
+
+// Xuất một hàm mà AWS Lambda hoặc môi trường serverless có thể gọi
+exports.handler = async (event) => {
+  // Bạn có thể thêm mã xử lý ở đây nếu cần
+
+  // Trả về một response giả để AWS Lambda không bị lỗi
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ message: "Hàm đã được gọi thành công!" })
+  };
+};
+
