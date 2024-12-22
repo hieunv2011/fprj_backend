@@ -3,7 +3,7 @@ const mqtt = require("mqtt");
 const admin = require("firebase-admin");
 
 // Tải tệp serviceAccountKey.json từ Firebase Console
-const serviceAccount = require("./firebase/serviceAccountKey.json"); // Đảm bảo bạn thay đổi đúng đường dẫn
+const serviceAccount = require("./firebase/node.json"); // Đảm bảo bạn thay đổi đúng đường dẫn
 
 // Khởi tạo Firebase Admin SDK
 admin.initializeApp({
