@@ -1,58 +1,108 @@
-// Import các thư viện cần thiết
-const mqtt = require("mqtt");
-const admin = require("firebase-admin");
+const admin = require('firebase-admin');
+const mqtt = require('mqtt');
+const serviceAccount = require('./firebase/key.json');
 
-// Tải tệp serviceAccountKey.json từ Firebase Console
-const serviceAccount = require("./firebase/node.json"); // Đảm bảo bạn thay đổi đúng đường dẫn
-
-// Khởi tạo Firebase Admin SDK
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://nodejs-271db-default-rtdb.firebaseio.com" // Đảm bảo URL trùng với Firebase Realtime Database của bạn
 });
 
-// Truy cập vào Firebase Realtime Database
-const db = admin.database();
+const registrationToken = 'dIP65YJMTyitkDk04_eJZR:APA91bF8fbOm3RrO5MhMQZztPBQdTeZ7i9tzx4V6gpoQeYbpWE1MSt9e5eZMU0O6-XUPSwKoMDAYTS9EmYjBqFKtz7tD3fyjrZ4dIG4V6a7Xe4f04mAlu70';
 
-// Kết nối với MQTT broker
+// Kết nối MQTT
 const mqttClient = mqtt.connect('mqtt://103.1.238.175', {
   port: 1883,
   username: 'test',
-  password: 'testadmin'
+  password: 'testadmin',
 });
 
-// Đăng ký để nhận dữ liệu từ topic MQTT (ví dụ: "sensor/data")
 mqttClient.on('connect', () => {
-  console.log("Kết nối thành công với MQTT Broker!");
-  mqttClient.subscribe('device', (err) => {
+  console.log('Connected to MQTT broker');
+  const topic = 'nvhdevice'; // Topic mà bạn muốn subscribe
+  mqttClient.subscribe(topic, (err) => {
     if (err) {
-      console.log("Lỗi khi đăng ký topic:", err);
+      console.log('Subscription failed:', err);
     } else {
-      console.log("Đã đăng ký nhận dữ liệu từ topic 'device'");
+      console.log(`Subscribed to topic: ${topic}`);
     }
   });
 });
 
-// Lắng nghe và xử lý dữ liệu nhận từ MQTT
-mqttClient.on('message', (topic, message) => {
-  console.log(`Đã nhận dữ liệu từ topic ${topic}:`, message.toString());
+// Hàm kiểm tra các chỉ số và tạo thông báo cảnh báo
+function checkForDanger(data) {
+  let messageText = '';
+  let isDanger = false;
 
-  // Dữ liệu nhận được từ MQTT (ví dụ: JSON data)
-  const data = JSON.parse(message.toString());
+  if (data.gas_ppm > 2000) {
+    messageText += 'Gas is danger; ';
+    isDanger = true;
+  }
+  
+  if (data.flame_detected === 0) {
+    messageText += 'Fire is danger; ';
+    isDanger = true;
+  }
+  
+  if (data.temperature > 100) {
+    messageText += 'Temperature is danger; ';
+    isDanger = true;
+  }
+  
+  if (data.humidity < 30) {
+    messageText += 'Humidity is danger; ';
+    isDanger = true;
+  }
+  
+  if (data.dust_density > 1000) {
+    messageText += 'Dust density is danger; ';
+    isDanger = true;
+  }
 
-  // Đẩy dữ liệu lên Firebase Realtime Database
-  const ref = db.ref("sensorData"); // Chọn node 'sensorData'
-  const newDataRef = ref.push();  // Tạo ID ngẫu nhiên cho dữ liệu mới
-  newDataRef.set(data, (error) => {
-    if (error) {
-      console.log("Dữ liệu không thể lưu:", error);
-    } else {
-      console.log("Dữ liệu đã được lưu thành công vào Firebase!");
+  return { messageText, isDanger };
+}
+
+// Nhận dữ liệu từ MQTT và kiểm tra
+mqttClient.on('message', async (topic, message) => {
+  try {
+    const data = JSON.parse(message.toString());
+    console.log(`Data received from topic ${topic}:`, data);
+
+    if (!data || Object.keys(data).length === 0) {
+      console.log("Received empty data");
+      return;
     }
-  });
-});
 
-// Lắng nghe sự kiện lỗi MQTT
-mqttClient.on('error', (err) => {
-  console.log("Lỗi MQTT:", err);
+    for (const deviceName of Object.keys(data)) {
+      const deviceData = data[deviceName];
+      
+      // Kiểm tra dữ liệu và gửi thông báo nếu có nguy hiểm
+      const { messageText, isDanger } = checkForDanger(deviceData);
+      if (isDanger) {
+        const notificationMessage = {
+          notification: {
+            title: 'Cảnh báo!',
+            body: messageText,
+          },
+          data: {
+            score: '850',
+            time: '2:45',
+          },
+          token: registrationToken,
+        };
+
+        admin.messaging()
+          .send(notificationMessage)
+          .then((response) => {
+            console.log('Successfully sent message:', response);
+          })
+          .catch((error) => {
+            console.error('Error sending message:', error);
+          });
+      } else {
+        console.log('No danger detected.');
+      }
+    }
+
+  } catch (error) {
+    console.error('Error parsing message:', error);
+  }
 });
