@@ -35,7 +35,7 @@ const mqttClient = mqtt.connect("mqtt://103.1.238.175", {
 
 mqttClient.on('connect', () => {
   console.log('Connected to MQTT broker');
-  const topic = 'nguyenviethieudevice'; // Đặt tên topic là 'device'
+  const topic = 'nvhdevice'; // Đặt tên topic là 'device'
   mqttClient.subscribe(topic, (err) => {
     if (err) {
       console.log("Subscription failed:", err);
@@ -49,34 +49,37 @@ mqttClient.on('connect', () => {
 function checkForDanger(data) {
   let messageText = "";
   let isDanger = false;
+  const dangers = [];
 
   if (data.gas_ppm > 2000) {
-    messageText += "Gas is danger; ";
+    dangers.push("Gas is danger");
     isDanger = true;
   }
 
   if (data.flame_detected === 0) {
-    messageText += "Fire is danger; ";
+    dangers.push("Fire is danger");
     isDanger = true;
   }
 
   if (data.temperature > 100) {
-    messageText += "Temperature is danger; ";
+    dangers.push("Temperature is danger");
     isDanger = true;
   }
 
   if (data.humidity < 30) {
-    messageText += "Humidity is danger; ";
+    dangers.push("Humidity is danger");
     isDanger = true;
   }
 
   if (data.dust_density > 1000) {
-    messageText += "Dust density is danger; ";
+    dangers.push("Dust density is danger");
     isDanger = true;
   }
+  messageText = dangers.join('; ');
 
   return { messageText, isDanger };
 }
+
 
 // Nhận dữ liệu từ topic 'device' và xử lý
 mqttClient.on("message", async (topic, message) => {
@@ -105,7 +108,7 @@ mqttClient.on("message", async (topic, message) => {
       console.log("Response Data:", responseData);
 
       // Gửi phản hồi lên topic mới dựa vào tên thiết bị
-      const responseTopic = `nguyenviethieu/${deviceName}`;
+      const responseTopic = `nvhresponse/${deviceName}`;
       mqttClient.publish(responseTopic, JSON.stringify(responseData), (err) => {
         if (err) {
           console.log("Error sending data:", err);
@@ -120,31 +123,27 @@ mqttClient.on("message", async (topic, message) => {
       if (isDanger) {
         //FCM
         // Kiểm tra dữ liệu và gửi thông báo nếu có nguy hiểm
-        const { messageText, isDanger } = checkForDanger(deviceData);
-        if (isDanger) {
-          const notificationMessage = {
-            notification: {
-              title: 'Cảnh báo!',
-              body: messageText,
-            },
-            data: {
-              score: '850',
-              time: '2:45',
-            },
-            token: registrationToken,
-          };
+        const { messageText} = checkForDanger(deviceData);
+        const notificationMessage = {
+          notification: {
+            title: deviceName,
+            body: messageText,
+          },
+          data: {
+            score: '850',
+            time: '2:45',
+          },
+          token: registrationToken,
+        };
 
-          admin.messaging()
-            .send(notificationMessage)
-            .then((response) => {
-              console.log('Successfully sent message:', response);
-            })
-            .catch((error) => {
-              console.error('Error sending message:', error);
-            });
-        } else {
-          console.log('No danger detected.');
-        }
+        admin.messaging()
+          .send(notificationMessage)
+          .then((response) => {
+            console.log('Successfully sent message:', response);
+          })
+          .catch((error) => {
+            console.error('Error sending message:', error);
+          });
         //MongoDb Update
         const device = await Device.findOne({ deviceId: deviceName });
         if (device) {
