@@ -23,9 +23,7 @@ const mqttClient = mqtt.connect('mqtt://103.1.238.175', {
   username: 'test',
   password: 'testadmin'
 });
-// const mqttClient = mqtt.connect('mqtt://broker.hivemq.com');
 
-// Kết nối và subscribe tới topic 'device'
 mqttClient.on('connect', () => {
   console.log('Connected to MQTT broker');
   const topic = 'nguyenviethieudevice'; // Đặt tên topic là 'device'
