@@ -6,7 +6,7 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-const registrationToken = 'dIP65YJMTyitkDk04_eJZR:APA91bF8fbOm3RrO5MhMQZztPBQdTeZ7i9tzx4V6gpoQeYbpWE1MSt9e5eZMU0O6-XUPSwKoMDAYTS9EmYjBqFKtz7tD3fyjrZ4dIG4V6a7Xe4f04mAlu70';
+const registrationToken = 'eN1BplU5S0KLqb99f380kW:APA91bFc9ZgQPsywg3l1Em7-24_eumss1IJFnbv8kNY8xuk-cvx1bbzCPdGZqHaQxPoEWrEqQWTQyM8FRtptiZstmITEkmEeoZog6BIDmjQtdFwInATMh6E';
 
 // Kết nối MQTT
 const mqttClient = mqtt.connect('mqtt://103.1.238.175', {
@@ -33,27 +33,27 @@ function checkForDanger(data) {
   let isDanger = false;
 
   if (data.gas_ppm > 2000) {
-    messageText += 'Gas is danger; ';
+    messageText += 'Gas is danger ';
     isDanger = true;
   }
   
   if (data.flame_detected === 0) {
-    messageText += 'Fire is danger; ';
+    messageText += 'Fire is danger ';
     isDanger = true;
   }
   
   if (data.temperature > 100) {
-    messageText += 'Temperature is danger; ';
+    messageText += 'Temperature is danger ';
     isDanger = true;
   }
   
   if (data.humidity < 30) {
-    messageText += 'Humidity is danger; ';
+    messageText += 'Humidity is danger ';
     isDanger = true;
   }
   
   if (data.dust_density > 1000) {
-    messageText += 'Dust density is danger; ';
+    messageText += 'Dust density is danger ';
     isDanger = true;
   }
 
