@@ -55,7 +55,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
 
     res.json({ token, role: user.role });
   } catch (error) {
@@ -107,7 +107,7 @@ router.get('/', authorize(['admin', 'manager']), async (req, res) => {
   }
 });
 // PUT /users/:id - Cập nhật thông tin người dùng
-router.put('/:id', authorize(['admin', 'manager']), async (req, res) => {
+router.put('/:id', authorize(['admin', 'manager','user']), async (req, res) => {
   const userId = req.params.id;
   const { email, password, username, phone, role, contact, devices } = req.body;
 
