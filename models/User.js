@@ -31,8 +31,8 @@ const userSchema = new Schema({
     email: String,
     address: String,
     coordinates: {
-      lat: { type: Number, required: true },
-      lng: { type: Number, required: true }
+      lat: { type: Number, required: false },
+      lng: { type: Number, required: false }
     },
     building: String,
     emergencyContact: String
@@ -41,10 +41,13 @@ const userSchema = new Schema({
     {
       deviceId: { type: String, required: true },
     }
-  ]
+  ],
+  fcmtoken: {
+    type: String,
+    required: false
+  }
 });
 
-// Tạo model từ schema
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;
