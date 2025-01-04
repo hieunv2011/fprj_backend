@@ -197,9 +197,9 @@ router.get('/', authorize(['admin', 'manager']), async (req, res) => {
   }
 });
 // PUT /users/:id - Cập nhật thông tin người dùng
-router.put('/:id', authorize(['admin', 'manager','user']), async (req, res) => {
+router.put('/:id', authorize(['admin', 'manager', 'user']), async (req, res) => {
   const userId = req.params.id;
-  const { email, password, username, phone, role, contact, devices } = req.body;
+  const { email, password, username, phone, role, contact, devices, fcmtoken } = req.body;
 
   try {
     // Tìm người dùng theo userId
@@ -230,6 +230,7 @@ router.put('/:id', authorize(['admin', 'manager','user']), async (req, res) => {
     if (role) user.role = role;
     if (contact) user.contact = contact;
     if (devices) user.devices = devices;
+    if (fcmtoken) user.fcmtoken = fcmtoken;  // Cập nhật fcmtoken nếu có
 
     // Lưu lại thay đổi
     await user.save();
