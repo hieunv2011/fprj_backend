@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Device = require('../models/Device');
+const Otp = require('../models/Otp');
+const sendOTP = require('../Utils/sendOTP');
 const router = express.Router();
 const authorize = require('../middleware/authorize');
 
@@ -10,17 +12,98 @@ const authorize = require('../middleware/authorize');
 const JWT_SECRET = 'your_jwt_secret_key';
 
 // POST register
+// router.post('/register', async (req, res) => {
+//   try {
+//     const { email, password, username, phone, role, contact, devices } = req.body;
+
+//     console.log('Received data:', req.body); // Log dữ liệu nhận được
+
+//     const existingUser = await User.findOne({ $or: [{ email }, { username }, { phone }] });
+//     if (existingUser) {
+//       return res.status(400).json({ message: 'Email, username, or phone number already exists' });
+//     }
+
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     const newUser = new User({
+//       email,
+//       password: hashedPassword,
+//       username,
+//       phone,
+//       role,
+//       contact,
+//       devices
+//     });
+
+//     await newUser.save();
+//     res.status(201).json({ message: 'User registered successfully' });
+//   } catch (error) {
+//     console.error(error); // Log lỗi nếu có
+//     res.status(500).json({ message: error.message });
+//   }
+// });
+// POST register
 router.post('/register', async (req, res) => {
   try {
     const { email, password, username, phone, role, contact, devices } = req.body;
 
     console.log('Received data:', req.body); // Log dữ liệu nhận được
 
+    // Kiểm tra nếu người dùng đã tồn tại
     const existingUser = await User.findOne({ $or: [{ email }, { username }, { phone }] });
     if (existingUser) {
       return res.status(400).json({ message: 'Email, username, or phone number already exists' });
     }
 
+    // Tạo OTP ngẫu nhiên và thời gian hết hạn
+    const otp = Math.floor(100000 + Math.random() * 900000); // OTP ngẫu nhiên 6 chữ số
+    const otpExpiration = Date.now() + 5 * 60 * 1000; // OTP hết hạn sau 5 phút
+
+    // Lưu OTP vào cơ sở dữ liệu
+    const otpEntry = new Otp({
+      email,
+      otp,
+      expiresat: otpExpiration,
+    });
+    await otpEntry.save();
+
+    // Gửi OTP qua email
+    await sendOTP(email, otp);
+
+    // Trả về thông báo yêu cầu người dùng nhập OTP
+    res.status(200).json({ message: 'OTP sent to email. Please verify to complete registration.' });
+
+  } catch (error) {
+    console.error(error); // Log lỗi nếu có
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// POST verify OTP and complete registration
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { email, otp, password, username, phone, role, contact, devices } = req.body;
+
+    // Kiểm tra xem OTP có hợp lệ không
+    const otpEntry = await Otp.findOne({ email });
+    if (!otpEntry) {
+      return res.status(400).json({ message: 'OTP not found or expired' });
+    }
+
+    console.log('OTP in DB:', otpEntry.otp); // In OTP từ CSDL
+    console.log('OTP from user:', otp); // In OTP từ người dùng gửi
+
+    // Kiểm tra xem expiresat có hợp lệ không
+    if (!otpEntry.expiresat || otpEntry.expiresat < Date.now()) {
+      return res.status(400).json({ message: 'OTP has expired' });
+    }
+
+    // Kiểm tra OTP có đúng không
+    if (!otpEntry.otp || otpEntry.otp !== otp) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+
+    // Mã OTP hợp lệ, tiến hành đăng ký người dùng
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({
@@ -34,12 +117,19 @@ router.post('/register', async (req, res) => {
     });
 
     await newUser.save();
+
+    // Xóa OTP đã sử dụng
+    await Otp.deleteOne({ email });
+
     res.status(201).json({ message: 'User registered successfully' });
   } catch (error) {
     console.error(error); // Log lỗi nếu có
     res.status(500).json({ message: error.message });
   }
 });
+
+
+
 // POST login
 router.post('/login', async (req, res) => {
   try {
