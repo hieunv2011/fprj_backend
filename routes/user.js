@@ -270,6 +270,8 @@ router.get('/:id', authorize(['admin', 'manager']), async (req, res) => {
 
 
 //Phần liên quan đến Device
+
+
 // API để gắn thiết bị vào người dùng
 router.post('/assign-device', authorize(['admin', 'manager','user']), async (req, res) => {
   const { userId, deviceId } = req.body;

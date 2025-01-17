@@ -53,7 +53,7 @@ function checkForDanger(data) {
   let isDanger = false;
   const dangers = [];
 
-  if (data.gas_ppm > 2000) {
+  if (data.gas_ppm > 300) {
     dangers.push("Gas is danger");
     isDanger = true;
   }
@@ -63,25 +63,20 @@ function checkForDanger(data) {
     isDanger = true;
   }
 
-  if (data.temperature > 100) {
+  if (data.temperature > 60) {
     dangers.push("Temperature is danger");
     isDanger = true;
   }
 
-  if (data.humidity < 30) {
+  if (data.humidity < 29) {
     dangers.push("Humidity is danger");
     isDanger = true;
   }
 
-  if (data.dust_density > 1000) {
-    dangers.push("Dust density is danger");
-    isDanger = true;
-  }
   messageText = dangers.join('; ');
 
   return { messageText, isDanger };
 }
-
 
 // Nhận dữ liệu từ topic 'device' và xử lý
 mqttClient.on("message", async (topic, message) => {
@@ -94,20 +89,26 @@ mqttClient.on("message", async (topic, message) => {
       return;
     }
 
+    let allWarnings = true;
+
     for (const deviceName of Object.keys(data)) {
       const deviceData = data[deviceName];
 
       const { isDanger } = checkForDanger(deviceData);
 
       const responseData = {
-        gas_ppm: deviceData.gas_ppm > 2000 ? "warning" : "normal",
+        gas_ppm: deviceData.gas_ppm > 300 ? "warning" : "normal",
         flame_detected: deviceData.flame_detected === 0 ? "warning" : "normal",
-        temperature: deviceData.temperature > 100 ? "warning" : "normal",
-        humidity: deviceData.humidity < 30 ? "warning" : "normal",
-        dust_density: deviceData.dust_density > 1000 ? "warning" : "normal",
+        temperature: deviceData.temperature > 60 ? "warning" : "normal",
+        humidity: deviceData.humidity < 29 ? "warning" : "normal",
       };
 
       console.log("Response Data:", responseData);
+
+      // Kiểm tra nếu tất cả các giá trị đều không phải warning
+      if (Object.values(responseData).includes("normal")) {
+        allWarnings = false;
+      }
 
       // Gửi phản hồi lên topic mới dựa vào tên thiết bị
       const responseTopic = `nvhresponse/${deviceName}`;
@@ -118,14 +119,15 @@ mqttClient.on("message", async (topic, message) => {
           console.log(`Sent data to topic ${responseTopic}`);
         }
       });
+
       if (!isDanger) {
         console.log("No danger detected; data not saved");
         continue;
       }
+
       if (isDanger) {
-        //FCM
         // Kiểm tra dữ liệu và gửi thông báo nếu có nguy hiểm
-        const { messageText} = checkForDanger(deviceData);
+        const { messageText } = checkForDanger(deviceData);
         const notificationMessage = {
           notification: {
             title: deviceName,
@@ -146,7 +148,8 @@ mqttClient.on("message", async (topic, message) => {
           .catch((error) => {
             console.error('Error sending message:', error);
           });
-        //MongoDb Update
+
+        // MongoDB Update
         const device = await Device.findOne({ deviceId: deviceName });
         if (device) {
           device.sensorData.push(deviceData);
@@ -158,6 +161,16 @@ mqttClient.on("message", async (topic, message) => {
         }
       }
     }
+
+    // Gửi topic nvhalarm với giá trị on/off
+    const alarmStatus = allWarnings ? "on" : "off";
+    mqttClient.publish("nvhalarm", alarmStatus, (err) => {
+      if (err) {
+        console.log("Error sending alarm status:", err);
+      } else {
+        console.log(`Alarm status set to: ${alarmStatus}`);
+      }
+    });
   } catch (error) {
     console.error("Error parsing message:", error);
   }
